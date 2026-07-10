@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TokuFlix - Streaming Tokusatsu Series</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts (Inter) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #ef4444;
+        }
+        /* Glow animations */
+        .neon-glow:hover {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Navigation Bar -->
+    <nav class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/60 px-4 py-3 lg:px-8">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <!-- Logo -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="resetFilters()">
+                <div class="w-10 h-10 bg-gradient-to-tr from-red-600 to-rose-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30">
+                    <i class="fa-solid fa-mask text-white text-xl animate-pulse"></i>
+                </div>
+                <span class="text-2xl font-black tracking-wider bg-gradient-to-r from-red-500 to-amber-500 bg-clip-text text-transparent">TOKU<span class="text-white">FLIX</span></span>
+            </div>
+
+            <!-- Search Bar (Desktop) -->
+            <div class="hidden md:flex items-center flex-1 max-w-md mx-8 relative">
+                <input type="text" id="desktopSearch" oninput="handleSearch(this.value)" placeholder="Cari Kamen Rider, Sentai, atau Rangers..." class="w-full bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 rounded-full py-2 px-5 pl-11 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-300">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 text-slate-500"></i>
+            </div>
+
+            <!-- Right Options -->
+            <div class="flex items-center space-x-3 md:space-x-4">
+                <!-- Admin Dashboard Button -->
+                <button onclick="toggleAdminPanel()" class="p-2.5 bg-slate-900 hover:bg-slate-800 text-amber-500 hover:text-amber-400 rounded-full transition-all active:scale-95 border border-amber-500/20 shadow-md shadow-amber-500/5" title="Panel Admin">
+                    <i class="fa-solid fa-user-gear text-lg"></i>
+                </button>
+
+                <!-- Watchlist Button -->
+                <button onclick="toggleWatchlistPanel()" class="relative p-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-full transition-all active:scale-95">
+                    <i class="fa-solid fa-bookmark text-lg"></i>
+                    <span id="watchlistCount" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-950 scale-100 transition-all">0</span>
+                </button>
+                
+                <!-- Profile Mock -->
+                <div class="flex items-center space-x-2 border-l border-slate-800 pl-4">
+                    <img src="https://placehold.co/100x100/1e293b/ef4444?text=T" alt="User Avatar" class="w-9 h-9 rounded-full border border-red-500/50">
+                    <span class="text-sm font-semibold hidden lg:inline-block text-slate-300">TokuFans</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Search Bar -->
+        <div class="mt-3 md:hidden relative">
+            <input type="text" id="mobileSearch" oninput="handleSearch(this.value)" placeholder="Cari Kamen Rider, Sentai..." class="w-full bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 rounded-full py-2.5 px-5 pl-11 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-500"></i>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-4 py-6 md:py-8 space-y-10">
+
+        <!-- Featured / Hero Section -->
+        <section id="heroSection" class="relative rounded-2xl md:rounded-3xl overflow-hidden min-h-[400px] md:min-h-[500px] flex items-end p-6 md:p-12 shadow-2xl">
+            <!-- Hero Background Overlay -->
+            <div class="absolute inset-0 bg-cover bg-center transition-all duration-700 transform scale-105" id="heroBg" style="background-image: linear-gradient(to top, #0b0f19 15%, rgba(15, 23, 42, 0.4) 60%, rgba(15, 23, 42, 0.1) 100%), url('https://placehold.co/1200x600/1e293b/ef4444?text=Kamen+Rider+Gavv+Hero+Banner');"></div>
+            
+            <div class="relative z-10 max-w-2xl space-y-4">
+                <span id="heroBadge" class="inline-flex items-center px-3 py-1 bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold uppercase rounded-md tracking-wider">
+                    Terpopuler
+                </span>
+                <h1 id="heroTitle" class="text-3xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight drop-shadow-md">
+                    Kamen Rider Gavv
+                </h1>
+                <p id="heroDesc" class="text-slate-300 text-sm md:text-base line-clamp-3 drop-shadow">
+                    Kamen Rider era Reiwa ke-6 dengan tema kudapan manis dan permen! Ikuti petualangan Shoma Shouma menghadapi klan Granute demi melindungi kedamaian bumi.
+                </p>
+                
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <button id="heroPlayBtn" onclick="openPlayer(0)" class="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl flex items-center space-x-2 transition-all duration-300 transform active:scale-95 shadow-lg shadow-red-600/30 neon-glow">
+                        <i class="fa-solid fa-play"></i>
+                        <span>Tonton Sekarang</span>
+                    </button>
+                    <button id="heroBookmarkBtn" onclick="toggleHeroWatchlist()" class="px-6 py-3 bg-slate-900/90 hover:bg-slate-800 text-slate-200 font-semibold rounded-xl flex items-center space-x-2 border border-slate-800 transition-all duration-300 transform active:scale-95">
+                        <i class="fa-regular fa-bookmark" id="heroBookmarkIcon"></i>
+                        <span id="heroBookmarkText">Tambah Daftar Tonton</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Category Selector & Filters -->
+        <section class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/60 pb-5">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                        <span class="w-1.5 h-6 bg-red-500 rounded-full"></span>
+                        Jelajahi Universe Tokusatsu
+                    </h2>
+                    <p class="text-xs md:text-sm text-slate-400 mt-1">Pilih kategori favorit Anda untuk memfilter seri.</p>
+                </div>
+                
+                <!-- Interactive Tabs -->
+                <div class="flex items-center gap-1.5 overflow-x-auto pb-2 md:pb-0 scrollbar-none">
+                    <button onclick="setCategory('all')" id="tab-all" class="category-tab px-4 py-2 bg-red-600 text-white font-semibold text-xs md:text-sm rounded-xl transition-all duration-200 shrink-0">
+                        Semua
+                    </button>
+                    <button onclick="setCategory('kamen_rider')" id="tab-kamen_rider" class="category-tab px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold text-xs md:text-sm rounded-xl transition-all duration-200 shrink-0">
+                        Kamen Rider
+                    </button>
+                    <button onclick="setCategory('super_sentai')" id="tab-super_sentai" class="category-tab px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold text-xs md:text-sm rounded-xl transition-all duration-200 shrink-0">
+                        Super Sentai
+                    </button>
+                    <button onclick="setCategory('power_rangers')" id="tab-power_rangers" class="category-tab px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold text-xs md:text-sm rounded-xl transition-all duration-200 shrink-0">
+                        Power Rangers
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tokusatsu Cards Grid -->
+            <div id="seriesGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+                <!-- Javascript will render cards here dynamically -->
+            </div>
+            
+            <!-- Empty Search State -->
+            <div id="emptyState" class="hidden flex-col items-center justify-center text-center py-16 space-y-4">
+                <div class="w-20 h-20 bg-slate-900 rounded-full flex items-center justify-center border border-slate-800">
+                    <i class="fa-solid fa-ghost text-slate-500 text-3xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-200">Seri Tidak Ditemukan</h3>
+                    <p class="text-sm text-slate-500 max-w-sm mt-1">Maaf, kami tidak bisa menemukan seri Tokusatsu yang Anda cari. Coba kata kunci lainnya!</p>
+                </div>
+                <button onclick="resetFilters()" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-red-500 hover:text-red-400 font-bold text-sm rounded-xl border border-slate-800 transition-all">
+                    Reset Pencarian
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginModal" class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/95 backdrop-blur-md hidden transition-opacity duration-300 opacity-0 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300">
+            <div class="p-5 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-amber-500/10 text-amber-500 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-lock text-md"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Login Admin</h3>
+                </div>
+                <button onclick="closeAdminLogin()" class="w-9 h-9 bg-slate-900 hover:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <form id="adminLoginForm" onsubmit="handleAdminLogin(event)" class="p-6 space-y-4">
+                <p id="adminLoginError" class="hidden text-xs text-red-400 bg-red-500/10 border border-red-500/30 rounded-lg p-2.5"></p>
+                <div>
+                    <label class="block text-xs text-slate-400 font-semibold mb-1.5">Username</label>
+                    <input type="text" id="adminUsername" required autocomplete="username" class="w-full bg-slate-950 border border-slate-800 text-sm text-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 font-semibold mb-1.5">Password</label>
+                    <input type="password" id="adminPassword" required autocomplete="current-password" class="w-full bg-slate-950 border border-slate-800 text-sm text-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                </div>
+                <button type="submit" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm rounded-lg transition-all active:scale-95">
+                    Masuk
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard Modal -->
+    <div id="adminModal" class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/95 backdrop-blur-md hidden transition-opacity duration-300 opacity-0 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-6xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-amber-500/10 text-amber-500 rounded-lg flex items-center justify-center">
+                        <i class="fa-solid fa-screwdriver-wrench text-md"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white">Dashboard Admin TokuFlix</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="adminLogout()" class="px-3 h-9 bg-slate-900 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-full flex items-center gap-2 text-xs font-semibold transition-all border border-transparent hover:border-red-500/30">
+                        <i class="fa-solid fa-right-from-bracket"></i> Logout
+                    </button>
+                    <button onclick="toggleAdminPanel()" class="w-9 h-9 bg-slate-900 hover:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center transition-all">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body (Two-Column Layout) -->
+            <div class="flex-grow overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Column Left: Form Tambah/Edit Series (Span 5) -->
+                <div class="lg:col-span-5 space-y-5 bg-slate-950/40 p-5 rounded-xl border border-slate-800/60">
+                    <h4 class="text-sm font-extrabold uppercase tracking-wider text-amber-500 flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Tambah Seri Toku Baru
+                    </h4>
+                    
+                    <form id="seriesForm" onsubmit="handleSaveSeries(event)" class="space-y-4">
+                        <input type="hidden" id="editSeriesId" value="">
+                        
+                        <div>
+                            <label class="block text-xs text-slate-400 font-semibold mb-1.5">Judul Seri</label>
+                            <input type="text" id="formTitle" required placeholder="Contoh: Kamen Rider Gotchard" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-400 font-semibold mb-1.5">Kategori</label>
+                                <select id="formCategory" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                                    <option value="kamen_rider">Kamen Rider</option>
+                                    <option value="super_sentai">Super Sentai</option>
+                                    <option value="power_rangers">Power Rangers</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 font-semibold mb-1.5">Tahun Rilis</label>
+                                <input type="number" id="formYear" required placeholder="Contoh: 2024" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs text-slate-400 font-semibold mb-1.5">Rating (0 - 10)</label>
+                                <input type="number" step="0.1" max="10" id="formRating" required placeholder="Contoh: 8.8" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-slate-400 font-semibold mb-1.5">Genre (Pisahkan dengan koma)</label>
+                                <input type="text" id="formGenre" placeholder="Contoh: Action, Mecha, Sci-Fi" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-slate-400 font-semibold mb-1.5">Deskripsi Seri</label>
+                            <textarea id="formDesc" rows="3" required placeholder="Tulis sinopsis cerita atau sekilas info mengenai seri ini..." class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-slate-400 font-semibold mb-1.5">URL Poster Gambar (Rasio Tinggi)</label>
+                            <input type="url" id="formPoster" placeholder="https://..." class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-slate-400 font-semibold mb-1.5">URL Banner Gambar (Rasio Lebar)</label>
+                            <input type="url" id="formBanner" placeholder="https://..." class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                        </div>
+
+                        <div class="flex gap-2 pt-2">
+                            <button type="submit" id="submitBtn" class="flex-grow py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md shadow-amber-500/10">
+                                <i class="fa-solid fa-save mr-1"></i> Simpan Seri
+                            </button>
+                            <button type="button" onclick="resetSeriesForm()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-all">
+                                Batal
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Column Right: List Series & Manage Episodes (Span 7) -->
+                <div class="lg:col-span-7 space-y-6 flex flex-col h-full justify-between">
+                    <!-- Top Section: Series Table -->
+                    <div class="space-y-4">
+                        <h4 class="text-sm font-extrabold uppercase tracking-wider text-amber-500 flex items-center justify-between">
+                            <span><i class="fa-solid fa-list"></i> Daftar Seri Tokuflix</span>
+                            <span class="text-xs text-slate-500 capitalize" id="adminTotalSeries">0 Seri</span>
+                        </h4>
+
+                        <!-- Admin Table Container -->
+                        <div class="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-950/20 max-h-[250px] overflow-y-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-950/60 border-b border-slate-800 text-slate-400">
+                                        <th class="p-3 font-semibold">Poster</th>
+                                        <th class="p-3 font-semibold">Judul Seri</th>
+                                        <th class="p-3 font-semibold">Kategori</th>
+                                        <th class="p-3 font-semibold text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminSeriesTableBody">
+                                    <!-- Dynamic rows from Javascript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Section: Manage Episode Section for Selected Series -->
+                    <div id="adminEpisodePanel" class="border border-slate-800/80 bg-slate-950/40 p-5 rounded-xl space-y-4 hidden">
+                        <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold text-amber-500">MENGELOLA EPISODE</span>
+                                <h4 id="adminSelectedSeriesTitle" class="text-sm font-extrabold text-white">Judul Seri</h4>
+                            </div>
+                            <button onclick="hideEpisodePanel()" class="text-slate-500 hover:text-slate-300 text-xs">
+                                <i class="fa-solid fa-xmark mr-1"></i> Sembunyikan
+                            </button>
+                        </div>
+
+                        <!-- Form Tambah Episode -->
+                        <form id="episodeForm" onsubmit="handleAddEpisode(event)" class="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800/60">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-[10px] text-slate-400 font-bold mb-1">Nomor Ep (Angka)</label>
+                                    <input type="number" id="epNumber" required placeholder="Contoh: 1" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2 focus:outline-none">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-[10px] text-slate-400 font-bold mb-1">Judul Episode</label>
+                                    <input type="text" id="epTitle" required placeholder="Contoh: Bangkitnya Sang Kesatria Gummy" class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2 focus:outline-none">
+                                </div>
+                            </div>
+
+                            <div class="space-y-1">
+                                <label class="block text-[10px] text-slate-400 font-bold">Sumber Link Video</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="epVideoLink" required placeholder="Sematkan link (YouTube, Google Drive, atau Direct Link MP4)" class="flex-grow bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-600 rounded-lg p-2 focus:outline-none">
+                                    <select id="epLinkType" class="bg-slate-900 border border-slate-800 text-xs text-slate-300 rounded-lg px-2 focus:outline-none">
+                                        <option value="embed">Embed (GDrive / YouTube)</option>
+                                        <option value="direct">Direct Link (.MP4)</option>
+                                    </select>
+                                </div>
+                                <span class="text-[9px] text-slate-500 block leading-tight">
+                                    * Tips Google Drive: Atur video jadi Publik, lalu salin URL preview (ganti ujung link /view dengan /preview).
+                                </span>
+                            </div>
+
+                            <button type="submit" class="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition-all active:scale-95 shadow">
+                                <i class="fa-solid fa-plus-circle mr-1"></i> Tambahkan Episode Baru
+                            </button>
+                        </form>
+
+                        <!-- Episodes List Inside Admin panel -->
+                        <div class="space-y-2">
+                            <h5 class="text-xs font-bold text-slate-400">Daftar Episode Terunggah</h5>
+                            <div id="adminEpisodeList" class="space-y-1 max-h-[140px] overflow-y-auto pr-1">
+                                <!-- Loaded episode items dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fallback / Guidance Info if Episode Panel is Closed -->
+                    <div id="adminEpisodeBannerHelp" class="p-4 bg-slate-950/60 border border-slate-800/80 rounded-xl flex items-center space-x-3 text-slate-400 text-xs">
+                        <i class="fa-solid fa-circle-question text-amber-500 text-lg"></i>
+                        <p class="leading-relaxed">
+                            Pilih tombol <strong class="text-slate-200">"Kelola Ep"</strong> pada daftar tabel di atas untuk memuat daftar episode, menambahkan episode baru, atau menghapus link video di seri terpilih.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sliding Watchlist Drawer -->
+    <div id="watchlistDrawer" class="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-slate-950/95 backdrop-blur-lg border-l border-slate-800 transform translate-x-full transition-transform duration-300 shadow-2xl flex flex-col">
+        <!-- Drawer Header -->
+        <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-bookmark text-red-500 text-xl"></i>
+                <h3 class="text-xl font-bold text-white">Daftar Tontonan Anda</h3>
+            </div>
+            <button onclick="toggleWatchlistPanel()" class="w-9 h-9 bg-slate-900 hover:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center transition-all">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Drawer Content -->
+        <div id="watchlistContainer" class="flex-grow overflow-y-auto p-6 space-y-4">
+            <!-- Dynamic elements will load here -->
+        </div>
+
+        <!-- Drawer Footer -->
+        <div class="p-6 border-t border-slate-800 bg-slate-950">
+            <button onclick="clearWatchlist()" class="w-full py-3 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-semibold rounded-xl text-center transition-all border border-slate-800/60">
+                Bersihkan Semua Daftar
+            </button>
+        </div>
+    </div>
+
+    <!-- Video Player and Detail Modal -->
+    <div id="playerModal" class="fixed inset-0 z-50 overflow-y-auto bg-slate-950/90 backdrop-blur-md hidden transition-opacity duration-300 opacity-0 flex items-center justify-center p-4">
+        
+        <!-- Modal Wrapper -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col">
+            
+            <!-- Modal Header -->
+            <div class="p-4 md:px-6 md:py-4 border-b border-slate-800 bg-slate-950 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <span id="modalHeaderCategory" class="px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 text-[10px] font-bold uppercase rounded">Kamen Rider</span>
+                    <h3 id="modalHeaderTitle" class="text-md md:text-lg font-bold text-white truncate max-w-md">Kamen Rider Gavv</h3>
+                </div>
+                <button onclick="closePlayer()" class="w-9 h-9 bg-slate-900 hover:bg-slate-800 text-slate-400 rounded-full flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content (Scrollable Container) -->
+            <div class="flex-grow overflow-y-auto">
+                <div class="grid grid-cols-1 lg:grid-cols-3">
+                    
+                    <!-- Left: Video Player & Description (Span 2) -->
+                    <div class="lg:col-span-2 p-4 md:p-6 space-y-6 border-r border-slate-800/60">
+                        
+                        <!-- REAL VIDEO PLAYER & EMBED CONTAINER -->
+                        <div class="relative aspect-video bg-black rounded-xl overflow-hidden border border-slate-800">
+                            <!-- HTML5 Video Tag (Untuk direct link video mp4/webm) -->
+                            <video id="html5Player" class="w-full h-full object-contain hidden" controls autoplay playsinline>
+                                Your browser does not support the video tag.
+                            </video>
+
+                            <!-- Iframe Container (Untuk YouTube / Embed player eksternal / Google Drive) -->
+                            <iframe id="iframePlayer" class="w-full h-full border-0 hidden" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                            
+                            <!-- Placeholder Simulator / Poster -->
+                            <div id="playerPlaceholder" class="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center text-center p-4">
+                                <div class="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center text-white mb-4 cursor-pointer hover:bg-red-500 transition-colors" onclick="startCurrentVideo()">
+                                    <i class="fa-solid fa-play text-2xl ml-1"></i>
+                                </div>
+                                <p class="text-sm font-semibold text-slate-200" id="placeholderText">Klik putar untuk memulai video</p>
+                            </div>
+
+                            <!-- Buffering Overlay -->
+                            <div id="playerBuffering" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center hidden">
+                                <div class="flex flex-col items-center space-y-2">
+                                    <div class="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <span class="text-xs text-slate-300 font-semibold tracking-wider">Menghubungkan Server Stream...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Info Area -->
+                        <div class="space-y-4">
+                            <div class="flex flex-wrap items-center gap-3">
+                                <h2 id="modalTitle" class="text-2xl font-extrabold text-white">Kamen Rider Gavv</h2>
+                                <span id="modalRating" class="flex items-center gap-1 text-xs font-bold text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded">
+                                    <i class="fa-solid fa-star text-[10px]"></i> 9.2
+                                </span>
+                                <span id="modalYear" class="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded font-medium">2024</span>
+                            </div>
+                            <p id="modalDesc" class="text-sm text-slate-300 leading-relaxed">
+                                Deskripsi seri akan ditampilkan di sini dengan detail lengkap, sinopsis alur cerita, dan tema utama.
+                            </p>
+                            <!-- Tags and Cast -->
+                            <div class="pt-4 border-t border-slate-800/80 space-y-2">
+                                <div class="text-xs text-slate-400 flex flex-wrap gap-2 items-center">
+                                    <span class="font-bold text-slate-300">Genre:</span>
+                                    <span id="modalGenreContainer" class="flex flex-wrap gap-1">
+                                        <!-- Genres Dynamic -->
+                                    </span>
+                                </div>
+                                <div class="text-xs text-slate-400">
+                                    <span class="font-bold text-slate-300">Distributor Resmi:</span> Toei Company Ltd. / Hasbro
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Discussion / Live Chat Section -->
+                        <div class="space-y-4 pt-4 border-t border-slate-800">
+                            <h4 class="text-md font-bold text-white flex items-center gap-2">
+                                <i class="fa-regular fa-comments text-red-500"></i>
+                                Diskusi TokuFans (Komentar)
+                            </h4>
+                            <!-- Comment Form -->
+                            <div class="flex items-start space-x-3 bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                                <img src="https://placehold.co/100x100/1e293b/ef4444?text=U" class="w-8 h-8 rounded-full border border-red-500/30">
+                                <div class="flex-grow space-y-2">
+                                    <textarea id="commentInput" rows="2" placeholder="Tulis tanggapan Anda mengenai seri ini..." class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 rounded-lg p-2.5 focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-transparent resize-none"></textarea>
+                                    <div class="flex justify-end">
+                                        <button onclick="addComment()" class="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg transition-all active:scale-95">
+                                            Kirim
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Comments List -->
+                            <div id="commentsList" class="space-y-3 max-h-48 overflow-y-auto pr-1">
+                                <!-- Loaded comments dynamic -->
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right: Episode Selection Panel -->
+                    <div class="p-4 md:p-6 bg-slate-950 flex flex-col justify-between h-full">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                                <h4 class="text-md font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-list text-red-500"></i>
+                                    Daftar Episode
+                                </h4>
+                                <span class="text-xs text-slate-400" id="totalEpCount">12 Episode</span>
+                            </div>
+                            
+                            <!-- Search Episode -->
+                            <div class="relative">
+                                <input type="text" id="searchEp" oninput="filterEpisodes(this.value)" placeholder="Cari episode..." class="w-full bg-slate-900 border border-slate-800 text-xs text-slate-300 placeholder-slate-600 rounded-lg py-2 px-4 pl-9 focus:outline-none focus:ring-1 focus:ring-red-500">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-600 text-[10px]"></i>
+                            </div>
+
+                            <!-- Episodes List Grid -->
+                            <div id="episodesGrid" class="space-y-2 max-h-[350px] overflow-y-auto pr-1">
+                                <!-- Dynamic list -->
+                            </div>
+                        </div>
+
+                        <!-- Info Banner below episodes -->
+                        <div class="mt-6 p-3 bg-red-950/20 border border-red-500/20 rounded-xl flex items-start space-x-3">
+                            <i class="fa-solid fa-circle-info text-red-400 mt-0.5 text-xs"></i>
+                            <div class="text-[11px] text-slate-400">
+                                <span class="font-bold text-slate-300">Petunjuk Penggunaan:</span> Anda bisa menyematkan link video YouTube, Iframe Google Drive, atau link langsung file MP4/MKV Anda pada Dashboard Admin.
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full"></div>
+
+    <!-- Footer Section -->
+    <footer class="bg-slate-950 border-t border-slate-900 mt-16 py-8 px-4 text-center text-slate-500 text-xs">
+        <div class="max-w-7xl mx-auto space-y-4">
+            <div class="flex items-center justify-center space-x-3">
+                <span class="text-lg font-black tracking-wider bg-gradient-to-r from-red-500 to-amber-500 bg-clip-text text-transparent">TOKU<span class="text-slate-400">FLIX</span></span>
+            </div>
+            <p class="max-w-md mx-auto text-slate-600 leading-relaxed">
+                TokuFlix adalah website streaming simulasi Tokusatsu gratis dengan kualitas terbaik. Semua konten media didapatkan secara independen untuk tujuan pembelajaran & demo UI.
+            </p>
+            <div class="flex items-center justify-center gap-4 text-slate-400 text-sm">
+                <a href="#" class="hover:text-red-500 transition-colors"><i class="fa-brands fa-youtube"></i></a>
+                <a href="#" class="hover:text-red-500 transition-colors"><i class="fa-brands fa-tiktok"></i></a>
+                <a href="#" class="hover:text-red-500 transition-colors"><i class="fa-brands fa-instagram"></i></a>
+                <a href="#" class="hover:text-red-500 transition-colors"><i class="fa-brands fa-discord"></i></a>
+            </div>
+            <div class="text-slate-600 text-[10px] pt-4">
+                &copy; 2026 TokuFlix Team. Dibuat dengan cinta untuk seluruh fans Tokusatsu Indonesia.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Script Logic -->
+    <script>
+        // Default Static Series Database (When localstorage is empty)
+        const DEFAULT_SERIES_DATA = [
+            {
+                id: 100,
+                title: "Kamen Rider Gavv",
+                category: "kamen_rider",
+                year: "2024",
+                rating: "9.2",
+                desc: "Kamen Rider era Reiwa ke-6 dengan tema makanan manis dan cemilan! Ikuti perjuangan Shoma Shouma demi melindungi kedamaian bumi dan bersenang-senang mengalahkan Granute.",
+                banner: "https://placehold.co/1200x600/111827/ef4444?text=Kamen+Rider+Gavv+Banner",
+                poster: "https://placehold.co/300x450/0f172a/ef4444?text=Kamen+Rider+Gavv",
+                genre: ["Reiwa", "Action", "Drama", "Gourmet"],
+                episodes: [
+                    { ep: 1, title: "Kelahiran Gavv!", embedUrl: "https://www.youtube.com/embed/Xq-UeB_X94Y" },
+                    { ep: 2, title: "Kekuatan Gummy Manis", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" },
+                    { ep: 3, title: "Rasa Cokelat yang Kuat (GDrive)", embedUrl: "https://drive.google.com/file/d/1vA5W0tO4Z8GqA7Lp_xYz-o9f8G6S5D/preview" },
+                    { ep: 4, title: "Pertempuran Keripik Kentang", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ" }
+                ],
+                comments: [
+                    { user: "Keitaro", text: "Tema cemilan tapi ceritanya sangat seru dan emosional! Rekomendasi wajib!" },
+                    { user: "RiderFans", text: "Form Chocodon favorit saya!" }
+                ]
+            },
+            {
+                id: 101,
+                title: "Bakuage Sentai Boonboomger",
+                category: "super_sentai",
+                year: "2024",
+                rating: "8.9",
+                desc: "Seri Super Sentai ke-48 yang memiliki tema mobil modifikasi dan balapan luar angkasa. Para kru Boonboomger siap menekan gas mengendarai impian mereka melampaui batas!",
+                banner: "https://placehold.co/1200x600/111827/3b82f6?text=Bakuage+Sentai+Boonboomger+Banner",
+                poster: "https://placehold.co/300x450/0f172a/3b82f6?text=Boonboomger",
+                genre: ["Sentai", "Racing", "Comedy", "Mecha"],
+                episodes: [
+                    { ep: 1, title: "Bakuage Starter!", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4" },
+                    { ep: 2, title: "Mesin Super Modifikasi", videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4" }
+                ],
+                comments: [
+                    { user: "SpeedyRed", text: "Suara mecha-nya gokil bgt! Mantap Boon!" }
+                ]
+            },
+            {
+                id: 102,
+                title: "Power Rangers Cosmic Fury",
+                category: "power_rangers",
+                year: "2023",
+                rating: "8.5",
+                desc: "Ranger legendaris berpetualang ke luar angkasa guna menghadapi Lord Zedd yang bangkit kembali. Dapatkan kekuatan kosmik baru demi kedamaian galaksi!",
+                banner: "https://placehold.co/1200x600/111827/f59e0b?text=Power+Rangers+Cosmic+Fury+Banner",
+                poster: "https://placehold.co/300x450/0f172a/f59e0b?text=Cosmic+Fury",
+                genre: ["Rangers", "Sci-Fi", "Cosmic", "Space"],
+                episodes: [
+                    { ep: 1, title: "Kekuatan Kosmik Bangkit!", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ" }
+                ],
+                comments: [
+                    { user: "LordZeddIsBack", text: "Akhirnya seri ranger dengan cerita matang, keren!" }
+                ]
+            },
+            {
+                id: 103,
+                title: "Kamen Rider Geats",
+                category: "kamen_rider",
+                year: "2022",
+                rating: "9.5",
+                desc: "Selamat datang di Desire Grand Prix! Gim realitas bertahan hidup misterius di mana para pemain berubah menjadi Kamen Rider demi memenangkan poin taruhan dan mengubah dunia.",
+                banner: "https://placehold.co/1200x600/111827/10b981?text=Kamen+Rider+Geats+Banner",
+                poster: "https://placehold.co/300x450/0f172a/10b981?text=Kamen+Rider+Geats",
+                genre: ["Survival", "Gamer", "Mystery", "Action"],
+                episodes: [
+                    { ep: 1, title: "Masuk Ke Arena!", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ" },
+                    { ep: 2, title: "Aturan Permainan Bertahan Hidup", embedUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ" }
+                ],
+                comments: [
+                    { user: "AceUkiyo", text: "Geats beneran rubah licik yang super keren sejak awal!" }
+                ]
+            }
+        ];
+
+        // Global State variables
+        let seriesData = [];
+        let currentCategory = 'all';
+        let searchQuery = '';
+        let watchlist = [];
+        let currentlyPlayingId = null;
+        let currentEpisode = 1;
+        let selectedAdminSeriesId = null; // For managing episodes inside admin panel
+
+        // Element references
+        const html5Player = document.getElementById('html5Player');
+        const iframePlayer = document.getElementById('iframePlayer');
+        const playerPlaceholder = document.getElementById('playerPlaceholder');
+        const placeholderText = document.getElementById('placeholderText');
+        const playerBuffering = document.getElementById('playerBuffering');
+
+        // ==========================================
+        //         SUPABASE CONNECTION (SHARED DB)
+        // ==========================================
+        const SUPABASE_URL = 'https://mjujtklfkekiejawwekh.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_mxhA__iBPhGK36ALGPiGeg_2285LsXG';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        window.onload = async function () {
+            await loadSeriesFromStorage();
+            loadWatchlistFromStorage();
+            renderSeries();
+            updateWatchlistBadge();
+
+            // Set Hero section dynamic load from first element if available
+            if (seriesData.length > 0) {
+                setHero(seriesData[0].id);
+            }
+        }
+
+        // --- SUPABASE <-> APP DATA MAPPING ---
+        function rowToSeries(row) {
+            return {
+                id: row.series_id,
+                title: row.title,
+                category: row.category,
+                year: row.year,
+                rating: row.rating,
+                genre: row.genre || [],
+                desc: row.description,
+                poster: row.poster,
+                banner: row.banner,
+                episodes: row.episodes || [],
+                comments: row.comments || []
+            };
+        }
+
+        function seriesToRow(item) {
+            return {
+                series_id: item.id,
+                title: item.title,
+                category: item.category,
+                year: item.year,
+                rating: item.rating,
+                genre: item.genre || [],
+                description: item.desc,
+                poster: item.poster,
+                banner: item.banner,
+                episodes: item.episodes || [],
+                comments: item.comments || []
+            };
+        }
+
+        // --- SUPABASE CORE LOGIC (dengan fallback localStorage jika offline) ---
+        async function loadSeriesFromStorage() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('series')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (data && data.length > 0) {
+                    seriesData = data.map(rowToSeries);
+                } else {
+                    // Database masih kosong -> isi dengan data awal (sekali saja)
+                    seriesData = DEFAULT_SERIES_DATA;
+                    const rows = DEFAULT_SERIES_DATA.map(seriesToRow);
+                    const { error: insertError } = await supabaseClient.from('series').insert(rows);
+                    if (insertError) console.error('Gagal seeding data awal:', insertError);
+                }
+                localStorage.setItem('toku_series_data', JSON.stringify(seriesData));
+            } catch (e) {
+                console.error('Gagal terhubung ke Supabase, memakai cadangan lokal:', e);
+                showToast('Gagal terhubung ke database, memakai data cadangan.', 'error');
+                const stored = localStorage.getItem('toku_series_data');
+                seriesData = stored ? JSON.parse(stored) : DEFAULT_SERIES_DATA;
+            }
+        }
+
+        // Simpan cadangan lokal saja (opsional, untuk fallback offline)
+        function saveSeriesToStorage() {
+            localStorage.setItem('toku_series_data', JSON.stringify(seriesData));
+        }
+
+        // Upsert 1 seri ke Supabase (dipakai saat tambah/edit seri, tambah/hapus episode, tambah komentar)
+        async function upsertSeriesToSupabase(item) {
+            try {
+                const { error } = await supabaseClient
+                    .from('series')
+                    .upsert(seriesToRow(item), { onConflict: 'series_id' });
+                if (error) throw error;
+                saveSeriesToStorage();
+                return true;
+            } catch (e) {
+                console.error('Gagal menyimpan ke Supabase:', e);
+                showToast('Gagal menyimpan perubahan ke database!', 'error');
+                return false;
+            }
+        }
+
+        // Hapus 1 seri dari Supabase
+        async function deleteSeriesFromSupabase(id) {
+            try {
+                const { error } = await supabaseClient
+                    .from('series')
+                    .delete()
+                    .eq('series_id', id);
+                if (error) throw error;
+                saveSeriesToStorage();
+                return true;
+            } catch (e) {
+                console.error('Gagal menghapus dari Supabase:', e);
+                showToast('Gagal menghapus data dari database!', 'error');
+                return false;
+            }
+        }
+
+        // Custom Custom Toast System (No window.alert)
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-xl shadow-lg border text-xs font-semibold flex items-center justify-between gap-3 transform translate-y-2 opacity-0 transition-all duration-300 ${
+                type === 'success' 
+                    ? 'bg-slate-900 border-emerald-500 text-emerald-400 shadow-emerald-500/5' 
+                    : 'bg-slate-900 border-red-500 text-red-400 shadow-red-500/5'
+            }`;
+            
+            toast.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i class="${type === 'success' ? 'fa-solid fa-circle-check text-emerald-400' : 'fa-solid fa-circle-exclamation text-red-400'} text-sm"></i>
+                    <span>${message}</span>
+                </div>
+                <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-slate-200">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            `;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // --- PUBLIC VIEWER: RENDERING & FILTERS ---
+        function renderSeries() {
+            const grid = document.getElementById('seriesGrid');
+            const emptyState = document.getElementById('emptyState');
+            grid.innerHTML = '';
+            
+            // Apply Filters
+            let filtered = seriesData.filter(item => {
+                const matchesCat = currentCategory === 'all' || item.category === currentCategory;
+                const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                      item.desc.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            } else {
+                grid.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+            }
+
+            filtered.forEach(item => {
+                const isSaved = watchlist.includes(item.id);
+                const bookmarkClass = isSaved ? 'fa-solid text-red-500' : 'fa-regular text-slate-400';
+                
+                const card = document.createElement('div');
+                card.className = "group bg-slate-900 border border-slate-800/80 rounded-2xl overflow-hidden hover:border-slate-700/80 transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between";
+                
+                const finalPoster = item.poster || `https://placehold.co/300x450/0f172a/ef4444?text=${encodeURIComponent(item.title)}`;
+                
+                card.innerHTML = `
+                    <div class="relative aspect-[2/3] overflow-hidden bg-slate-950 cursor-pointer" onclick="openPlayer(${item.id})">
+                        <img src="${finalPoster}" alt="${item.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/300x450/0f172a/ef4444?text=No+Poster';">
+                        <!-- Play Hover overlay -->
+                        <div class="absolute inset-0 bg-slate-950/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <div class="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center text-white scale-90 group-hover:scale-100 transition-transform duration-300 shadow-lg shadow-red-500/40">
+                                <i class="fa-solid fa-play text-lg ml-1"></i>
+                            </div>
+                        </div>
+                        <!-- Rating and Year Floating tags -->
+                        <div class="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none">
+                            <span class="bg-amber-500/90 text-slate-950 text-[10px] font-black px-2 py-0.5 rounded flex items-center gap-1 shadow-md">
+                                <i class="fa-solid fa-star"></i> ${item.rating}
+                            </span>
+                            <span class="bg-slate-950/80 backdrop-blur-sm text-slate-300 text-[9px] font-semibold px-2 py-0.5 rounded shadow-md border border-slate-800">
+                                ${item.year}
+                            </span>
+                        </div>
+                        <!-- Category Accent -->
+                        <div class="absolute bottom-3 left-3 bg-slate-950/90 backdrop-blur-sm border border-slate-800/60 text-slate-300 text-[9px] font-bold tracking-wider px-2.5 py-0.5 rounded uppercase pointer-events-none">
+                            ${item.category.replace('_', ' ')}
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 space-y-3">
+                        <h3 class="font-bold text-slate-200 text-sm line-clamp-1 group-hover:text-white transition-colors cursor-pointer" onclick="openPlayer(${item.id})">${item.title}</h3>
+                        <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/60">
+                            <span class="text-xs text-slate-500 font-medium">${item.episodes ? item.episodes.length : 0} Episode</span>
+                            <button onclick="toggleWatchlist(${item.id}, event)" class="p-1.5 hover:bg-slate-800 rounded-lg transition-all" title="Daftar Tontonan">
+                                <i class="${bookmarkClass} fa-bookmark text-sm" id="bookmark-icon-${item.id}"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Search Handlers
+        function handleSearch(val) {
+            searchQuery = val;
+            document.getElementById('desktopSearch').value = val;
+            document.getElementById('mobileSearch').value = val;
+            renderSeries();
+        }
+
+        function resetFilters() {
+            currentCategory = 'all';
+            searchQuery = '';
+            document.getElementById('desktopSearch').value = '';
+            document.getElementById('mobileSearch').value = '';
+            
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.className = "category-tab px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold text-xs md:text-sm rounded-xl transition-all duration-200 shrink-0";
+            });
+            document.getElementById('tab-all').className = "category-tab px-4 py-2 bg-red-600 text-white font-semibold text-xs md:text-sm rounded-xl transition-all duration-200 shrink-0";
+            renderSeries();
+        }
+
+        function setCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.category-tab').forEach(tab => {
+                tab.className = "category-tab px-4 py-2 bg-slate-900 hover:bg-slate-800 text-slate-400 font-semibold text-xs md:text-sm rounded-xl transition-all duration-200 shrink-0";
+            });
+            document.getElementById(`tab-${cat}`).className = "category-tab px-4 py-2 bg-red-600 text-white font-semibold text-xs md:text-sm rounded-xl transition-all duration-200 shrink-0";
+            renderSeries();
+        }
+
+        // --- HERO BANNER UPDATE LOGIC ---
+        function setHero(id) {
+            const item = seriesData.find(s => s.id === id);
+            if (!item) return;
+            const finalBanner = item.banner || `https://placehold.co/1200x600/111827/ef4444?text=${encodeURIComponent(item.title)}+Banner`;
+            document.getElementById('heroBg').style.backgroundImage = `linear-gradient(to top, #0b0f19 15%, rgba(15, 23, 42, 0.4) 60%, rgba(15, 23, 42, 0.1) 100%), url('${finalBanner}')`;
+            document.getElementById('heroTitle').innerText = item.title;
+            document.getElementById('heroDesc').innerText = item.desc;
+            document.getElementById('heroPlayBtn').setAttribute('onclick', `openPlayer(${item.id})`);
+            updateHeroBookmarkBtnUI(item.id);
+        }
+
+        function toggleHeroWatchlist() {
+            const heroTitle = document.getElementById('heroTitle').innerText;
+            const item = seriesData.find(s => s.title === heroTitle);
+            if (item) {
+                toggleWatchlist(item.id, null);
+                updateHeroBookmarkBtnUI(item.id);
+            }
+        }
+
+        function updateHeroBookmarkBtnUI(id) {
+            const isSaved = watchlist.includes(id);
+            const icon = document.getElementById('heroBookmarkIcon');
+            const text = document.getElementById('heroBookmarkText');
+            if (isSaved) {
+                icon.className = "fa-solid fa-bookmark text-red-500 animate-bounce";
+                text.innerText = "Tersimpan";
+            } else {
+                icon.className = "fa-regular fa-bookmark text-slate-200";
+                text.innerText = "Tambah Daftar Tonton";
+            }
+        }
+
+        // --- WATCHLIST (SAVED ITEMS) LOGIC ---
+        function toggleWatchlist(id, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+
+            const index = watchlist.indexOf(id);
+            if (index > -1) {
+                watchlist.splice(index, 1);
+                showToast("Dihapus dari daftar tontonan!");
+            } else {
+                watchlist.push(id);
+                showToast("Berhasil ditambahkan ke daftar tontonan!");
+            }
+            
+            saveWatchlistToStorage();
+            updateWatchlistBadge();
+            renderSeries();
+            renderWatchlistDrawer();
+            
+            const heroTitle = document.getElementById('heroTitle').innerText;
+            const heroItem = seriesData.find(s => s.title === heroTitle);
+            if (heroItem && heroItem.id === id) {
+                updateHeroBookmarkBtnUI(id);
+            }
+        }
+
+        function saveWatchlistToStorage() {
+            localStorage.setItem('tokusatsu_watchlist', JSON.stringify(watchlist));
+        }
+
+        function loadWatchlistFromStorage() {
+            const stored = localStorage.getItem('tokusatsu_watchlist');
+            if (stored) {
+                try {
+                    watchlist = JSON.parse(stored);
+                } catch(e) {
+                    watchlist = [];
+                }
+            }
+        }
+
+        function updateWatchlistBadge() {
+            const count = document.getElementById('watchlistCount');
+            count.innerText = watchlist.length;
+            if (watchlist.length > 0) {
+                count.classList.remove('scale-0');
+                count.classList.add('scale-100');
+            } else {
+                count.classList.remove('scale-100');
+                count.classList.add('scale-0');
+            }
+        }
+
+        function toggleWatchlistPanel() {
+            const drawer = document.getElementById('watchlistDrawer');
+            if (drawer.classList.contains('translate-x-full')) {
+                renderWatchlistDrawer();
+                drawer.classList.remove('translate-x-full');
+            } else {
+                drawer.classList.add('translate-x-full');
+            }
+        }
+
+        function renderWatchlistDrawer() {
+            const container = document.getElementById('watchlistContainer');
+            container.innerHTML = '';
+
+            if (watchlist.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center text-center py-12 space-y-3">
+                        <i class="fa-solid fa-folder-open text-slate-700 text-3xl"></i>
+                        <p class="text-sm text-slate-500">Daftar tontonan Anda masih kosong.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            watchlist.forEach(id => {
+                const item = seriesData.find(s => s.id === id);
+                if (!item) return;
+
+                const row = document.createElement('div');
+                row.className = "flex items-center space-x-3 bg-slate-900 border border-slate-800 p-2.5 rounded-xl justify-between group";
+                row.innerHTML = `
+                    <div class="flex items-center space-x-3 cursor-pointer" onclick="openPlayer(${item.id}); toggleWatchlistPanel()">
+                        <img src="${item.poster}" class="w-12 h-16 object-cover rounded-lg border border-slate-800">
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-200 line-clamp-1 group-hover:text-white">${item.title}</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">${item.year} &bull; ${item.episodes ? item.episodes.length : 0} Episode</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleWatchlist(${item.id}, event)" class="p-2 hover:bg-slate-800 text-slate-500 hover:text-red-500 rounded-lg transition-colors">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                    </button>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function clearWatchlist() {
+            watchlist = [];
+            saveWatchlistToStorage();
+            updateWatchlistBadge();
+            renderSeries();
+            renderWatchlistDrawer();
+            showToast("Watchlist dibersihkan!");
+        }
+
+        // --- STREAMING_CHUNK: Managing Video player mechanics... ---
+        // --- REAL CORE VIDEO PLAYER LOGIC ---
+        function openPlayer(id) {
+            const item = seriesData.find(s => s.id === id);
+            if (!item) return;
+
+            currentlyPlayingId = id;
+            currentEpisode = 1;
+            
+            document.getElementById('modalHeaderCategory').innerText = item.category.replace('_', ' ');
+            document.getElementById('modalHeaderTitle').innerText = `${item.title} - Episode 1`;
+            document.getElementById('modalTitle').innerText = item.title;
+            document.getElementById('modalRating').innerHTML = `<i class="fa-solid fa-star text-[10px]"></i> ${item.rating}`;
+            document.getElementById('modalYear').innerText = item.year;
+            document.getElementById('modalDesc').innerText = item.desc;
+
+            // Load Genres
+            const genreCont = document.getElementById('modalGenreContainer');
+            genreCont.innerHTML = '';
+            if (item.genre && Array.isArray(item.genre)) {
+                item.genre.forEach(g => {
+                    const tag = document.createElement('span');
+                    tag.className = "bg-slate-800 px-2 py-0.5 rounded text-[11px] text-slate-300";
+                    tag.innerText = g;
+                    genreCont.appendChild(tag);
+                });
+            }
+
+            resetPlayerView();
+            setupEpisodesList(item);
+            renderComments(item);
+
+            const modal = document.getElementById('playerModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.bg-slate-900').classList.remove('scale-95');
+                modal.querySelector('.bg-slate-900').classList.add('scale-100');
+            }, 50);
+
+            loadEpisodeVideo(item, 1);
+        }
+
+        function resetPlayerView() {
+            html5Player.classList.add('hidden');
+            html5Player.pause();
+            html5Player.src = "";
+            
+            iframePlayer.classList.add('hidden');
+            iframePlayer.src = "";
+
+            playerPlaceholder.classList.remove('hidden');
+            placeholderText.innerText = "Klik tombol putar untuk memulai video";
+        }
+
+        function loadEpisodeVideo(item, epNum) {
+            if (!item.episodes || item.episodes.length === 0) {
+                placeholderText.innerText = "Video episode belum tersedia untuk seri ini.";
+                return;
+            }
+
+            const episodeData = item.episodes.find(e => e.ep === epNum);
+            if (!episodeData) {
+                placeholderText.innerText = `Video untuk Episode ${epNum} belum tersedia.`;
+                return;
+            }
+
+            document.getElementById('modalHeaderTitle').innerText = `${item.title} - Episode ${epNum} : ${episodeData.title}`;
+
+            html5Player.pause();
+            html5Player.src = "";
+            iframePlayer.src = "";
+            
+            playerPlaceholder.classList.add('hidden');
+            playerBuffering.classList.remove('hidden');
+
+            setTimeout(() => {
+                playerBuffering.classList.add('hidden');
+                
+                if (episodeData.embedUrl) {
+                    iframePlayer.src = episodeData.embedUrl;
+                    iframePlayer.classList.remove('hidden');
+                    html5Player.classList.add('hidden');
+                } else if (episodeData.videoUrl) {
+                    html5Player.src = episodeData.videoUrl;
+                    html5Player.classList.remove('hidden');
+                    iframePlayer.classList.add('hidden');
+                    html5Player.load();
+                    html5Player.play().catch(err => {
+                        playerPlaceholder.classList.remove('hidden');
+                        placeholderText.innerText = "Interaksi diperlukan. Klik putar untuk menonton.";
+                    });
+                } else {
+                    playerPlaceholder.classList.remove('hidden');
+                    placeholderText.innerText = `Link video Episode ${epNum} tidak valid.`;
+                }
+            }, 500);
+        }
+
+        function startCurrentVideo() {
+            const item = seriesData.find(s => s.id === currentlyPlayingId);
+            if (item) {
+                loadEpisodeVideo(item, currentEpisode);
+            }
+        }
+
+        function closePlayer() {
+            html5Player.pause();
+            html5Player.src = "";
+            iframePlayer.src = "";
+
+            const modal = document.getElementById('playerModal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('.bg-slate-900').classList.add('scale-95');
+            modal.querySelector('.bg-slate-900').classList.remove('scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function setupEpisodesList(item) {
+            const grid = document.getElementById('episodesGrid');
+            grid.innerHTML = '';
+            
+            const count = item.episodes ? item.episodes.length : 0;
+            document.getElementById('totalEpCount').innerText = `${count} Episode`;
+
+            if (count === 0) {
+                grid.innerHTML = `<p class="text-xs text-slate-500 italic text-center py-4">Belum ada episode terunggah.</p>`;
+                return;
+            }
+
+            item.episodes.forEach(episode => {
+                const isCurrent = episode.ep === currentEpisode;
+                const activeClass = isCurrent ? 'bg-red-950/40 border-red-500 text-red-400 font-bold' : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800/80';
+                
+                const pill = document.createElement('div');
+                pill.className = `p-3 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${activeClass}`;
+                pill.setAttribute('onclick', `selectEpisode(${episode.ep})`);
+                pill.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="text-xs font-mono">EPS ${episode.ep}</span>
+                        <span class="text-xs ${isCurrent ? 'text-slate-200' : 'text-slate-400'}">${episode.title}</span>
+                    </div>
+                    <span class="text-[10px] text-slate-500 font-mono flex items-center gap-1">
+                        <i class="fa-regular fa-clock"></i> Play
+                    </span>
+                `;
+                grid.appendChild(pill);
+            });
+        }
+
+        function selectEpisode(epNum) {
+            currentEpisode = epNum;
+            const item = seriesData.find(s => s.id === currentlyPlayingId);
+            setupEpisodesList(item);
+            loadEpisodeVideo(item, epNum);
+        }
+
+        function filterEpisodes(query) {
+            const items = document.getElementById('episodesGrid').children;
+            for(let i = 0; i < items.length; i++) {
+                const text = items[i].innerText.toLowerCase();
+                if(text.includes(query.toLowerCase())) {
+                    items[i].style.display = "flex";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        }
+
+        // --- STREAMING_CHUNK: Processing Public Comments... ---
+        // Public Comments System
+        function renderComments(item) {
+            const container = document.getElementById('commentsList');
+            container.innerHTML = '';
+
+            if (!item.comments || item.comments.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic text-center py-4">Belum ada diskusi. Jadilah yang pertama berkomentar!</p>`;
+                return;
+            }
+
+            item.comments.forEach(c => {
+                const el = document.createElement('div');
+                el.className = "bg-slate-900/60 border border-slate-800 p-2.5 rounded-xl flex items-start space-x-2 text-xs";
+                el.innerHTML = `
+                    <div class="font-bold text-red-400 shrink-0">${c.user}:</div>
+                    <div class="text-slate-300 leading-relaxed">${c.text}</div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        async function addComment() {
+            const textInput = document.getElementById('commentInput');
+            const commentVal = textInput.value.trim();
+            if (!commentVal) return;
+
+            const item = seriesData.find(s => s.id === currentlyPlayingId);
+            if (item) {
+                if (!item.comments) item.comments = [];
+                item.comments.unshift({
+                    user: "Anda",
+                    text: commentVal
+                });
+
+                textInput.value = '';
+                renderComments(item);
+                document.getElementById('commentsList').scrollTop = 0;
+                await upsertSeriesToSupabase(item);
+            }
+        }
+
+
+        // --- STREAMING_CHUNK: Setting up Admin Panel logic... ---
+        // ==========================================
+        //         ADMIN LOGIN / AUTH (client-side)
+        // ==========================================
+        // NOTE: Ini adalah proteksi sisi client (front-end) saja, cocok untuk
+        // demo/portfolio. Untuk penggunaan produksi sesungguhnya, autentikasi
+        // admin harus divalidasi di server/backend, bukan disimpan di JS.
+        const ADMIN_CREDENTIALS = {
+            username: 'tokuadmin',
+            password: 'admin123'
+        };
+
+        function isAdminAuthenticated() {
+            return sessionStorage.getItem('tokuflix_admin_auth') === 'true';
+        }
+
+        function openAdminLogin() {
+            const modal = document.getElementById('adminLoginModal');
+            document.getElementById('adminLoginError').classList.add('hidden');
+            document.getElementById('adminLoginForm').reset();
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.bg-slate-900').classList.remove('scale-95');
+                modal.querySelector('.bg-slate-900').classList.add('scale-100');
+            }, 50);
+        }
+
+        function closeAdminLogin() {
+            const modal = document.getElementById('adminLoginModal');
+            modal.classList.add('opacity-0');
+            modal.querySelector('.bg-slate-900').classList.add('scale-95');
+            modal.querySelector('.bg-slate-900').classList.remove('scale-100');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function handleAdminLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('adminUsername').value.trim();
+            const password = document.getElementById('adminPassword').value;
+            const errorEl = document.getElementById('adminLoginError');
+
+            if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+                sessionStorage.setItem('tokuflix_admin_auth', 'true');
+                closeAdminLogin();
+                setTimeout(() => {
+                    openAdminDashboard();
+                }, 300);
+                showToast('Login admin berhasil!');
+            } else {
+                errorEl.innerText = 'Username atau password salah.';
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        function adminLogout() {
+            sessionStorage.removeItem('tokuflix_admin_auth');
+            toggleAdminPanel();
+            showToast('Anda telah logout dari admin.', 'error');
+        }
+
+        // ==========================================
+        //         ADMIN PANEL DASHBOARD CORE
+        // ==========================================
+        function openAdminDashboard() {
+            const modal = document.getElementById('adminModal');
+            renderAdminSeriesTable();
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.bg-slate-900').classList.remove('scale-95');
+                modal.querySelector('.bg-slate-900').classList.add('scale-100');
+            }, 50);
+        }
+
+        function toggleAdminPanel() {
+            const modal = document.getElementById('adminModal');
+            if (modal.classList.contains('hidden')) {
+                // Require login before opening admin dashboard
+                if (!isAdminAuthenticated()) {
+                    openAdminLogin();
+                    return;
+                }
+                // Open Admin
+                renderAdminSeriesTable();
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modal.querySelector('.bg-slate-900').classList.remove('scale-95');
+                    modal.querySelector('.bg-slate-900').classList.add('scale-100');
+                }, 50);
+            } else {
+                // Close Admin
+                modal.classList.add('opacity-0');
+                modal.querySelector('.bg-slate-900').classList.add('scale-95');
+                modal.querySelector('.bg-slate-900').classList.remove('scale-100');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        // Render Series Table inside Admin Dashboard
+        function renderAdminSeriesTable() {
+            const body = document.getElementById('adminSeriesTableBody');
+            const totalLabel = document.getElementById('adminTotalSeries');
+            body.innerHTML = '';
+            
+            totalLabel.innerText = `${seriesData.length} Seri`;
+
+            if (seriesData.length === 0) {
+                body.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="p-6 text-center text-slate-500 italic">
+                            Belum ada seri yang ditambahkan. Silakan isi form di sebelah kiri!
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            seriesData.forEach(item => {
+                const finalPoster = item.poster || `https://placehold.co/100x150/0f172a/ef4444?text=No+Img`;
+                const row = document.createElement('tr');
+                row.className = "border-b border-slate-800/60 hover:bg-slate-950/40 transition-colors";
+                row.innerHTML = `
+                    <td class="p-3">
+                        <img src="${finalPoster}" class="w-10 h-14 object-cover rounded-md border border-slate-800">
+                    </td>
+                    <td class="p-3 font-semibold text-slate-200">${item.title}</td>
+                    <td class="p-3 capitalize text-slate-400">${item.category.replace('_', ' ')}</td>
+                    <td class="p-3">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="editAdminSeries(${item.id})" class="px-2.5 py-1.5 bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 rounded font-semibold transition-all" title="Edit Data">
+                                <i class="fa-solid fa-pen text-[11px]"></i>
+                            </button>
+                            <button onclick="manageEpisodes(${item.id})" class="px-2.5 py-1.5 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded font-semibold transition-all" title="Kelola Episode">
+                                <i class="fa-solid fa-circle-play text-[11px] mr-1"></i>Kelola Ep
+                            </button>
+                            <button onclick="deleteAdminSeries(${item.id})" class="px-2.5 py-1.5 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded font-semibold transition-all" title="Hapus Seri">
+                                <i class="fa-solid fa-trash text-[11px]"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                body.appendChild(row);
+            });
+        }
+
+        // Save (Add or Update) Series Form Submit
+        async function handleSaveSeries(event) {
+            event.preventDefault();
+
+            const editId = document.getElementById('editSeriesId').value;
+            const title = document.getElementById('formTitle').value.trim();
+            const category = document.getElementById('formCategory').value;
+            const year = document.getElementById('formYear').value;
+            const rating = document.getElementById('formRating').value;
+            const genreRaw = document.getElementById('formGenre').value;
+            const desc = document.getElementById('formDesc').value.trim();
+            const poster = document.getElementById('formPoster').value.trim();
+            const banner = document.getElementById('formBanner').value.trim();
+
+            // Convert raw genres list to clean Array
+            const genre = genreRaw ? genreRaw.split(',').map(g => g.trim()).filter(g => g !== '') : ["Aksi"];
+
+            let savedItem = null;
+
+            if (editId) {
+                // EDIT MODE
+                const index = seriesData.findIndex(s => s.id === parseInt(editId));
+                if (index > -1) {
+                    seriesData[index] = {
+                        ...seriesData[index],
+                        title, category, year, rating, genre, desc, poster, banner
+                    };
+                    savedItem = seriesData[index];
+                    showToast("Seri Tokusatsu diperbarui!");
+                }
+            } else {
+                // ADD MODE
+                const newId = Date.now(); // Unique ID
+                const newSeries = {
+                    id: newId,
+                    title,
+                    category,
+                    year,
+                    rating,
+                    desc,
+                    poster: poster || `https://placehold.co/300x450/0f172a/ef4444?text=${encodeURIComponent(title)}`,
+                    banner: banner || `https://placehold.co/1200x600/111827/ef4444?text=${encodeURIComponent(title)}`,
+                    genre,
+                    episodes: [],
+                    comments: []
+                };
+                seriesData.unshift(newSeries);
+                savedItem = newSeries;
+                showToast("Seri Tokusatsu baru ditambahkan!");
+            }
+
+            if (savedItem) {
+                await upsertSeriesToSupabase(savedItem);
+            }
+
+            resetSeriesForm();
+            renderAdminSeriesTable();
+            renderSeries();
+        }
+
+        // Edit Series Data (Load into Form)
+        function editAdminSeries(id) {
+            const item = seriesData.find(s => s.id === id);
+            if (!item) return;
+
+            document.getElementById('editSeriesId').value = item.id;
+            document.getElementById('formTitle').value = item.title;
+            document.getElementById('formCategory').value = item.category;
+            document.getElementById('formYear').value = item.year;
+            document.getElementById('formRating').value = item.rating;
+            document.getElementById('formGenre').value = item.genre ? item.genre.join(', ') : '';
+            document.getElementById('formDesc').value = item.desc;
+            document.getElementById('formPoster').value = item.poster.includes('placehold.co') ? '' : item.poster;
+            document.getElementById('formBanner').value = item.banner.includes('placehold.co') ? '' : item.banner;
+
+            document.getElementById('submitBtn').innerHTML = `<i class="fa-solid fa-pen-to-square mr-1"></i> Update Seri`;
+            document.getElementById('submitBtn').className = "flex-grow py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md";
+        }
+
+        // Reset Form Series
+        function resetSeriesForm() {
+            document.getElementById('seriesForm').reset();
+            document.getElementById('editSeriesId').value = '';
+            document.getElementById('submitBtn').innerHTML = `<i class="fa-solid fa-save mr-1"></i> Simpan Seri`;
+            document.getElementById('submitBtn').className = "flex-grow py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition-all active:scale-95 shadow-md shadow-amber-500/10";
+        }
+
+        // Delete Admin Series
+        async function deleteAdminSeries(id) {
+            const item = seriesData.find(s => s.id === id);
+            if (!item) return;
+
+            const confirmRemoval = confirm(`Apakah Anda yakin ingin menghapus seri "${item.title}" beserta seluruh episodenya?`);
+            if (confirmRemoval) {
+                seriesData = seriesData.filter(s => s.id !== id);
+                
+                // Clean watchlist item if matching
+                watchlist = watchlist.filter(wId => wId !== id);
+                saveWatchlistToStorage();
+                updateWatchlistBadge();
+
+                // Reset selected panel if currently managing
+                if (selectedAdminSeriesId === id) {
+                    hideEpisodePanel();
+                }
+
+                await deleteSeriesFromSupabase(id);
+                renderAdminSeriesTable();
+                renderSeries();
+                showToast("Seri Tokusatsu telah dihapus!", "error");
+            }
+        }
+
+        // --- STREAMING_CHUNK: Managing episodes in Admin Dashboard... ---
+        // ==========================================
+        //         ADMIN EPISODE MANAGEMENT LOGIC
+        // ==========================================
+        function manageEpisodes(seriesId) {
+            const item = seriesData.find(s => s.id === seriesId);
+            if (!item) return;
+
+            selectedAdminSeriesId = seriesId;
+            document.getElementById('adminSelectedSeriesTitle').innerText = item.title;
+            
+            // Show Episode Panel, Hide general banner instruction
+            document.getElementById('adminEpisodePanel').classList.remove('hidden');
+            document.getElementById('adminEpisodeBannerHelp').classList.add('hidden');
+
+            renderAdminEpisodeList(item);
+        }
+
+        function hideEpisodePanel() {
+            selectedAdminSeriesId = null;
+            document.getElementById('adminEpisodePanel').classList.add('hidden');
+            document.getElementById('adminEpisodeBannerHelp').classList.remove('hidden');
+        }
+
+        function renderAdminEpisodeList(item) {
+            const container = document.getElementById('adminEpisodeList');
+            container.innerHTML = '';
+
+            if (!item.episodes || item.episodes.length === 0) {
+                container.innerHTML = `<p class="text-[11px] text-slate-500 italic text-center py-2">Belum ada episode. Tambahkan melalui form di atas!</p>`;
+                return;
+            }
+
+            // Sort episodes ascending by episode number
+            item.episodes.sort((a, b) => a.ep - b.ep);
+
+            item.episodes.forEach((episode, index) => {
+                const typeLabel = episode.embedUrl ? 'Embed' : 'Direct (.MP4)';
+                const typeColor = episode.embedUrl ? 'text-amber-400 bg-amber-400/10 border-amber-500/20' : 'text-blue-400 bg-blue-400/10 border-blue-500/20';
+                
+                const card = document.createElement('div');
+                card.className = "flex items-center justify-between p-2 bg-slate-900 border border-slate-800/80 rounded-lg text-[11px]";
+                card.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span class="font-mono bg-slate-950 px-2 py-0.5 rounded text-slate-300">Ep ${episode.ep}</span>
+                        <span class="text-slate-200 font-medium truncate max-w-[180px]">${episode.title}</span>
+                        <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold border ${typeColor}">${typeLabel}</span>
+                    </div>
+                    <button type="button" onclick="deleteAdminEpisode(${item.id}, ${episode.ep})" class="p-1 text-slate-500 hover:text-red-500 transition-colors">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Add Episode Form Submit Handler
+        async function handleAddEpisode(event) {
+            event.preventDefault();
+            if (!selectedAdminSeriesId) return;
+
+            const item = seriesData.find(s => s.id === selectedAdminSeriesId);
+            if (!item) return;
+
+            const epNum = parseInt(document.getElementById('epNumber').value);
+            const title = document.getElementById('epTitle').value.trim();
+            const link = document.getElementById('epVideoLink').value.trim();
+            const linkType = document.getElementById('epLinkType').value;
+
+            // Simple validation
+            if (!item.episodes) item.episodes = [];
+            
+            // Check duplicate episode number
+            const duplicateIndex = item.episodes.findIndex(e => e.ep === epNum);
+            if (duplicateIndex > -1) {
+                const overwrite = confirm(`Episode ${epNum} sudah ada. Apakah Anda ingin memperbarui (overwrite) episode ini?`);
+                if (!overwrite) return;
+                // Overwrite
+                item.episodes.splice(duplicateIndex, 1);
+            }
+
+            const newEpisode = {
+                ep: epNum,
+                title: title
+            };
+
+            // Set link based on select drop
+            if (linkType === 'embed') {
+                newEpisode.embedUrl = link;
+            } else {
+                newEpisode.videoUrl = link;
+            }
+
+            item.episodes.push(newEpisode);
+            await upsertSeriesToSupabase(item);
+            
+            // Reset episode form partially (leave ep number incremented automatically)
+            document.getElementById('epNumber').value = epNum + 1;
+            document.getElementById('epTitle').value = '';
+            document.getElementById('epVideoLink').value = '';
+
+            renderAdminEpisodeList(item);
+            renderSeries();
+            showToast(`Episode ${epNum} berhasil disimpan!`);
+        }
+
+        // Delete Episode from Seri
+        async function deleteAdminEpisode(seriesId, epNum) {
+            const item = seriesData.find(s => s.id === seriesId);
+            if (!item) return;
+
+            const confirmRemoval = confirm(`Hapus Episode ${epNum} dari "${item.title}"?`);
+            if (confirmRemoval) {
+                item.episodes = item.episodes.filter(e => e.ep !== epNum);
+                await upsertSeriesToSupabase(item);
+                renderAdminEpisodeList(item);
+                renderSeries();
+                showToast(`Episode ${epNum} dihapus!`, "error");
+            }
+        }
+    </script>
+</body>
+</html>
