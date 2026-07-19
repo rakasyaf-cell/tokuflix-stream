@@ -93,9 +93,20 @@
     <main class="flex-grow max-w-7xl mx-auto w-full px-4 py-6 md:py-8 space-y-10">
 
         <!-- Featured / Hero Section -->
-        <section id="heroSection" class="relative rounded-2xl md:rounded-3xl overflow-hidden min-h-[400px] md:min-h-[500px] flex items-end p-6 md:p-12 shadow-2xl">
+        <section id="heroSection" class="relative rounded-2xl md:rounded-3xl overflow-hidden min-h-[400px] md:min-h-[500px] flex items-end p-6 md:p-12 shadow-2xl select-none cursor-grab active:cursor-grabbing">
             <!-- Hero Background Overlay -->
             <div class="absolute inset-0 bg-cover bg-center transition-all duration-700 transform scale-105" id="heroBg" style="background-image: linear-gradient(to top, #0b0f19 15%, rgba(15, 23, 42, 0.4) 60%, rgba(15, 23, 42, 0.1) 100%), url('https://placehold.co/1200x600/1e293b/ef4444?text=Kamen+Rider+Gavv+Hero+Banner');"></div>
+
+            <!-- Manual Navigation Arrows -->
+            <button onclick="heroPrev()" aria-label="Banner sebelumnya" class="absolute left-2 md:left-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-slate-900/50 hover:bg-slate-900/80 text-white flex items-center justify-center backdrop-blur-sm transition-all duration-200">
+                <i class="fa-solid fa-chevron-left text-sm md:text-base"></i>
+            </button>
+            <button onclick="heroNext()" aria-label="Banner berikutnya" class="absolute right-2 md:right-4 top-1/2 -translate-y-1/2 z-20 w-9 h-9 md:w-11 md:h-11 rounded-full bg-slate-900/50 hover:bg-slate-900/80 text-white flex items-center justify-center backdrop-blur-sm transition-all duration-200">
+                <i class="fa-solid fa-chevron-right text-sm md:text-base"></i>
+            </button>
+
+            <!-- Dot Indicators -->
+            <div id="heroDots" class="absolute bottom-4 right-4 md:right-6 z-20 flex items-center gap-2"></div>
             
             <div class="relative z-10 max-w-2xl space-y-4">
                 <span id="heroBadge" class="inline-flex items-center px-3 py-1 bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold uppercase rounded-md tracking-wider">
@@ -675,6 +686,10 @@
         let currentlyPlayingId = null;
         let currentEpisode = 1;
         let selectedAdminSeriesId = null; // For managing episodes inside admin panel
+        let heroIndex = 0; // Tracks which series is currently shown in the hero banner
+        let heroRotationTimer = null; // Holds the interval reference for hero auto-rotation
+        let heroDragStartX = null; // X position where a drag/swipe started
+        let heroIsDragging = false; // Whether a mouse drag is currently in progress
 
         // Element references
         const html5Player = document.getElementById('html5Player');
@@ -699,6 +714,8 @@
             // Set Hero section dynamic load from first element if available
             if (seriesData.length > 0) {
                 setHero(seriesData[0].id);
+                startHeroRotation();
+                initHeroSwipe();
             }
         }
 
@@ -938,12 +955,100 @@
         function setHero(id) {
             const item = seriesData.find(s => s.id === id);
             if (!item) return;
+            const idx = seriesData.findIndex(s => s.id === id);
+            if (idx > -1) heroIndex = idx;
             const finalBanner = item.banner || `https://placehold.co/1200x600/111827/ef4444?text=${encodeURIComponent(item.title)}+Banner`;
             document.getElementById('heroBg').style.backgroundImage = `linear-gradient(to top, #0b0f19 15%, rgba(15, 23, 42, 0.4) 60%, rgba(15, 23, 42, 0.1) 100%), url('${finalBanner}')`;
             document.getElementById('heroTitle').innerText = item.title;
             document.getElementById('heroDesc').innerText = item.desc;
             document.getElementById('heroPlayBtn').setAttribute('onclick', `openPlayer(${item.id})`);
             updateHeroBookmarkBtnUI(item.id);
+            renderHeroDots();
+        }
+
+        // --- HERO BANNER AUTO-ROTATION (every 2 minutes) ---
+        function startHeroRotation() {
+            if (heroRotationTimer) clearInterval(heroRotationTimer);
+            const ROTATION_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+            heroRotationTimer = setInterval(() => {
+                if (seriesData.length === 0) return;
+                goToHero(heroIndex + 1, false);
+            }, ROTATION_INTERVAL_MS);
+        }
+
+        // Jumps the hero banner to a given index (wraps around). Pass resetTimer=false to avoid restarting the auto-rotation timer (used by the timer itself).
+        function goToHero(idx, resetTimer = true) {
+            if (seriesData.length === 0) return;
+            const nextIndex = ((idx % seriesData.length) + seriesData.length) % seriesData.length;
+            setHero(seriesData[nextIndex].id);
+            if (resetTimer) startHeroRotation();
+        }
+
+        function heroNext() {
+            goToHero(heroIndex + 1);
+        }
+
+        function heroPrev() {
+            goToHero(heroIndex - 1);
+        }
+
+        function renderHeroDots() {
+            const dotsContainer = document.getElementById('heroDots');
+            if (!dotsContainer) return;
+            dotsContainer.innerHTML = '';
+            seriesData.forEach((item, idx) => {
+                const dot = document.createElement('button');
+                dot.setAttribute('aria-label', `Tampilkan ${item.title}`);
+                dot.onclick = () => goToHero(idx);
+                dot.className = idx === heroIndex
+                    ? 'w-6 h-2 rounded-full bg-red-500 transition-all duration-300'
+                    : 'w-2 h-2 rounded-full bg-white/40 hover:bg-white/70 transition-all duration-300';
+                dotsContainer.appendChild(dot);
+            });
+        }
+
+        // --- HERO SWIPE / DRAG SUPPORT (touch + mouse) ---
+        function initHeroSwipe() {
+            const heroSection = document.getElementById('heroSection');
+            if (!heroSection) return;
+            const SWIPE_THRESHOLD = 50; // minimum px distance to count as a swipe
+
+            heroSection.addEventListener('touchstart', (e) => {
+                heroDragStartX = e.touches[0].clientX;
+            }, { passive: true });
+
+            heroSection.addEventListener('touchend', (e) => {
+                if (heroDragStartX === null) return;
+                const deltaX = e.changedTouches[0].clientX - heroDragStartX;
+                handleHeroSwipeEnd(deltaX, SWIPE_THRESHOLD);
+                heroDragStartX = null;
+            });
+
+            heroSection.addEventListener('mousedown', (e) => {
+                heroDragStartX = e.clientX;
+                heroIsDragging = true;
+            });
+
+            heroSection.addEventListener('mouseup', (e) => {
+                if (!heroIsDragging || heroDragStartX === null) return;
+                const deltaX = e.clientX - heroDragStartX;
+                handleHeroSwipeEnd(deltaX, SWIPE_THRESHOLD);
+                heroDragStartX = null;
+                heroIsDragging = false;
+            });
+
+            heroSection.addEventListener('mouseleave', () => {
+                heroDragStartX = null;
+                heroIsDragging = false;
+            });
+        }
+
+        function handleHeroSwipeEnd(deltaX, threshold) {
+            if (deltaX > threshold) {
+                heroPrev(); // swiped/dragged right -> previous banner
+            } else if (deltaX < -threshold) {
+                heroNext(); // swiped/dragged left -> next banner
+            }
         }
 
         function toggleHeroWatchlist() {
